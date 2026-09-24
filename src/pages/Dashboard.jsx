@@ -4,7 +4,8 @@ import StatCard from '../components/StatCard';
 import DomainRow from '../components/DomainRow';
 import AddDomainForm from '../components/AddDomainForm';
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://nawalaredirect-backend-production.up.railway.app';
+// FIX: pakai import.meta.env langsung, tidak duplikat deklarasi dari api.js
+const API_URL = import.meta.env.VITE_API_URL || '';
 
 export default function Dashboard({ onLogout, onStats }) {
   const [domains, setDomains] = useState([]);
@@ -198,7 +199,7 @@ export default function Dashboard({ onLogout, onStats }) {
         )}
 
         <div style={S.footer}>
-          Auto-refresh setiap 60 detik · Health check setiap 30 menit · Laporan Telegram setiap 4 jam
+          Auto-refresh setiap 60 detik · Health check setiap 10 menit · Laporan Telegram setiap 4 jam
         </div>
       </main>
     </div>

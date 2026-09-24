@@ -38,7 +38,7 @@ export const domainAPI = {
   checkAll: () => api.post('/api/domains/check-all'),
   checkISP: (id) => api.post(`/api/domains/${id}/check-isp`),
   checkAllISP: () => api.post('/api/domains/check-all-isp'),
-  setPath: (id, path) => api.put(`/api/domains/${id}/path`, { path }),
+
 };
 
 export default api;

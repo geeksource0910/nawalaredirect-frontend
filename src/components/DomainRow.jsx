@@ -104,7 +104,7 @@ export default function DomainRow({ domain, onRefresh, groups = [] }) {
           {/* ISP result inline */}
           {ispResult && (
             <div style={{ fontSize: 10, marginTop: 3, color: ispResult.isBlocked ? '#b91c1c' : '#15803d', fontWeight: 500 }}>
-              {ispResult.isBlocked ? '🚫 Nawala/Kominfo' : `✅ Aman (via ${ispResult.source === 'trustpositif' ? 'TrustPositif+indiwtf' : 'indiwtf'})`}
+              {ispResult.isBlocked ? '🚫 Nawala/Kominfo' : '✅ Aman (via TrustPositif)'}
             </div>
           )}
           {/* Edit group inline */}

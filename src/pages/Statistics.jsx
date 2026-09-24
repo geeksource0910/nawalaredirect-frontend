@@ -19,17 +19,34 @@ function CustomLabel({ cx, cy, midAngle, innerRadius, outerRadius, percent, name
 export default function Statistics({ onBack }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null); // FIX: tambah error state
 
   useEffect(() => {
     statsAPI.getDetailed()
       .then(res => setData(res.data))
-      .catch(console.error)
+      .catch(err => {
+        console.error(err);
+        // FIX: tampilkan error ke user, bukan cuma console.error
+        setError('Gagal memuat statistik. Coba refresh halaman.');
+      })
       .finally(() => setLoading(false));
   }, []);
 
   if (loading) return (
     <div style={S.page}>
       <div style={S.loading}>Memuat statistik...</div>
+    </div>
+  );
+
+  // FIX: tampilkan pesan error kalau fetch gagal
+  if (error) return (
+    <div style={S.page}>
+      <header style={S.header}>
+        <div style={S.headerLeft}>
+          <button style={S.backBtn} onClick={onBack}>← Kembali</button>
+        </div>
+      </header>
+      <div style={{ ...S.loading, color: '#b91c1c' }}>{error}</div>
     </div>
   );
 

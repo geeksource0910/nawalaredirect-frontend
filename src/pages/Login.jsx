@@ -48,6 +48,7 @@ export default function Login({ onLogin, expiredMsg }) {
               onChange={e => setUsername(e.target.value)}
               placeholder="admin"
               autoFocus
+              onKeyDown={e => e.key === 'Enter' && handleLogin(e)}
             />
           </div>
           <div style={S.field}>
