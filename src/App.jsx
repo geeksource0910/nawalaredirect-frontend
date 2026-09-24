@@ -9,16 +9,13 @@ function WarningBanner({ onStay }) {
   return (
     <div style={{
       position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999,
-      background: '#f59e0b', color: '#fff',
+      background: '#b45309', color: '#fff',
       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      padding: '12px 24px', fontSize: 13, fontWeight: 500,
-      boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+      padding: '10px 20px', fontSize: 12, fontWeight: 500,
+      boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
     }}>
-      <span>⚠️ Sesi kamu akan berakhir dalam 5 menit karena tidak aktif.</span>
-      <button onClick={onStay} style={{
-        background: '#fff', color: '#b45309', border: 'none',
-        borderRadius: 6, padding: '6px 14px', cursor: 'pointer', fontWeight: 600, fontSize: 12,
-      }}>
+      <span>⚠️ Sesi akan berakhir dalam 5 menit karena tidak aktif.</span>
+      <button onClick={onStay} style={{ background: 'rgba(255,255,255,0.15)', color: '#fff', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 6, padding: '5px 12px', cursor: 'pointer', fontWeight: 600, fontSize: 12 }}>
         Tetap Login
       </button>
     </div>
@@ -32,7 +29,8 @@ function AuthenticatedApp({ onLogout }) {
   if (page === 'statistics') return (
     <>
       {warning && <WarningBanner onStay={resetTimer} />}
-      <Statistics onBack={() => setPage('dashboard')} />
+      {/* FIX: pass onLogout ke Statistics supaya sidebar logout bisa jalan */}
+      <Statistics onBack={() => setPage('dashboard')} onLogout={onLogout} />
     </>
   );
 
@@ -45,18 +43,16 @@ function AuthenticatedApp({ onLogout }) {
 }
 
 export default function App() {
-  const [auth, setAuth] = useState(false);
+  const [auth, setAuth]       = useState(false);
   const [checking, setChecking] = useState(true);
   const [expiredMsg, setExpiredMsg] = useState(false);
 
   useEffect(() => {
-    // Cek apakah logout karena session expired
     const reason = localStorage.getItem('nawala_logout_reason');
     if (reason === 'session_expired') {
       setExpiredMsg(true);
       localStorage.removeItem('nawala_logout_reason');
     }
-
     const token = localStorage.getItem('nawala_token');
     if (!token) { setChecking(false); return; }
     authAPI.verify()
@@ -66,15 +62,14 @@ export default function App() {
   }, []);
 
   if (checking) return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: 'var(--bg)', color: 'var(--text-muted)', fontSize: 14 }}>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: 'var(--bg)', color: 'var(--text-muted)', fontSize: 13 }}>
       Memuat...
     </div>
   );
 
   function handleLogout() {
     localStorage.removeItem('nawala_token');
-    setAuth(false);
-    setExpiredMsg(false);
+    setAuth(false); setExpiredMsg(false);
   }
 
   if (!auth) return <Login onLogin={() => { setAuth(true); setExpiredMsg(false); }} expiredMsg={expiredMsg} />;
