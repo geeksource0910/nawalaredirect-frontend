@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { domainAPI } from '../api';
 import api from '../api';
+import { useIsMobile } from '../hooks/useIsMobile';
 
 export default function DomainRow({ domain, onRefresh, groups = [] }) {
   const [checking, setChecking]           = useState(false);
@@ -12,6 +13,7 @@ export default function DomainRow({ domain, onRefresh, groups = [] }) {
   const [groupInput, setGroupInput]       = useState(domain.group_name || '');
   const [ispResult, setIspResult]         = useState(null);
   const [hovered, setHovered]             = useState(false);
+  const isMobile                          = useIsMobile();
 
   const isBlocked  = domain.is_blocked === 1;
   const isInactive = domain.is_active  === 0;
@@ -151,9 +153,9 @@ export default function DomainRow({ domain, onRefresh, groups = [] }) {
         <td style={{ ...S.td, textAlign: 'right' }} width={180}>
           <div style={{
             display: 'flex', gap: 3, justifyContent: 'flex-end',
-            opacity: hovered ? 1 : 0,
+            opacity: (isMobile || hovered) ? 1 : 0,
             transition: 'opacity 0.15s',
-            pointerEvents: hovered ? 'auto' : 'none',
+            pointerEvents: (isMobile || hovered) ? 'auto' : 'none',
           }}>
             <ActionBtn label="Grp"  onClick={() => setEditingGroup(!editingGroup)} />
             <ActionBtn

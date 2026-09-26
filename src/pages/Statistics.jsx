@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { statsAPI } from '../api';
 import Sidebar from '../components/Sidebar';
+import { useIsMobile } from '../hooks/useIsMobile';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, CartesianGrid } from 'recharts';
 
 const COLORS = ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'];
@@ -17,7 +18,7 @@ function CustomLabel({ cx, cy, midAngle, innerRadius, outerRadius, percent }) {
   ) : null;
 }
 
-function DarkTooltip({ active, payload, label }) {
+function LightTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null;
   return (
     <div style={{ background: '#ffffff', border: '1px solid #e8e8e4', borderRadius: 6, padding: '8px 12px', fontSize: 12, boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}>
@@ -32,9 +33,11 @@ function DarkTooltip({ active, payload, label }) {
 }
 
 export default function Statistics({ onBack, onLogout }) {
-  const [data, setData]     = useState(null);
+  const [data, setData]       = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError]   = useState(null);
+  const [error, setError]     = useState(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const isMobile              = useIsMobile();
 
   useEffect(() => {
     statsAPI.getDetailed()
@@ -45,14 +48,13 @@ export default function Statistics({ onBack, onLogout }) {
 
   const pieData = (data?.redirectPerGroup || []).map((r, i) => ({
     name: r.group_name || 'Tanpa Group',
-    value: parseInt(r.count) || 0, // FIX: PostgreSQL COUNT returns string
+    value: parseInt(r.count) || 0,
     color: COLORS[i % COLORS.length],
   }));
 
   const last7Days = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(); d.setDate(d.getDate() - (6 - i));
     const dateStr = d.toISOString().split('T')[0];
-    // FIX: PostgreSQL DATE bisa return sebagai ISO datetime atau Date object
     const found = (data?.redirectPerDay || []).find(r => {
       const rDate = String(r.date).split('T')[0];
       return rDate === dateStr;
@@ -68,7 +70,6 @@ export default function Statistics({ onBack, onLogout }) {
   const groupedBarData = last7Days.map(day => {
     const obj = { date: day.date };
     groups.forEach(g => {
-      // FIX: normalize date yang sama
       const found = (data?.redirectGroupPerDay || []).find(r => {
         const rDate = String(r.date).split('T')[0];
         return rDate === day.dateStr && (r.group_name || 'Tanpa Group') === g;
@@ -78,30 +79,50 @@ export default function Statistics({ onBack, onLogout }) {
     return obj;
   });
 
-  const total = pieData.reduce((a, b) => a + b.value, 0); // sekarang beneran sum angka
+  const total = pieData.reduce((a, b) => a + b.value, 0);
+  const px    = isMobile ? 14 : 24;
+  const padY  = isMobile ? 12 : 20;
 
   return (
-    <div style={{ display: 'flex', height: '100vh', background: 'var(--bg)' }}>
+    <div style={{ display: 'flex', height: '100vh', background: 'var(--bg)', overflow: 'hidden' }}>
       <Sidebar
         activePage="statistics"
         onDashboard={onBack}
         onStats={() => {}}
         onLogout={onLogout}
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
       />
 
-      <div style={{ flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         {/* Header */}
-        <div style={S.pageHeader}>
-          <div>
-            <h1 style={S.pageTitle}>Statistik Redirect</h1>
-            <p style={S.pageSub}>Data redirect per group & domain</p>
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: `${padY}px ${px}px`, borderBottom: '1px solid var(--border)',
+          background: 'var(--bg2)', flexWrap: 'wrap', gap: 10,
+          position: 'sticky', top: 0, zIndex: 10,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {isMobile && (
+              <button
+                onClick={() => setSidebarOpen(true)}
+                style={S.hamburger}
+                aria-label="Buka menu"
+              >
+                <span style={{ fontSize: 18, lineHeight: 1 }}>☰</span>
+              </button>
+            )}
+            <div>
+              <h1 style={S.pageTitle}>Statistik Redirect</h1>
+              <p style={S.pageSub}>Data redirect per group &amp; domain</p>
+            </div>
           </div>
           <div style={{ ...S.badge, fontVariantNumeric: 'tabular-nums' }}>
             Total <strong style={{ color: 'var(--text)' }}>{total}</strong> redirect
           </div>
         </div>
 
-        <div style={S.content}>
+        <div style={{ padding: `${padY}px ${px}px` }}>
           {loading ? (
             <div style={S.center}>Memuat statistik...</div>
           ) : error ? (
@@ -110,19 +131,27 @@ export default function Statistics({ onBack, onLogout }) {
             <div style={S.center}>Belum ada data redirect.</div>
           ) : (
             <>
-              <div style={S.row2}>
+              {/* Top 2 cards — stack on mobile */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
+                gap: 12, marginBottom: 12,
+              }}>
+                {/* Pie chart */}
                 <div style={S.card}>
                   <div style={S.cardTitle}>Redirect per Group</div>
-                  <ResponsiveContainer width="100%" height={260}>
+                  <ResponsiveContainer width="100%" height={isMobile ? 220 : 260}>
                     <PieChart>
-                      <Pie data={pieData} cx="50%" cy="50%" outerRadius={100} dataKey="value" labelLine={false} label={<CustomLabel />}>
+                      <Pie data={pieData} cx="50%" cy="50%" outerRadius={isMobile ? 80 : 100} dataKey="value" labelLine={false} label={<CustomLabel />}>
                         {pieData.map((e, i) => <Cell key={i} fill={e.color} />)}
                       </Pie>
-                      <Tooltip content={<DarkTooltip />} />
+                      <Tooltip content={<LightTooltip />} />
                       <Legend wrapperStyle={{ fontSize: 11, color: '#52525b' }} />
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
+
+                {/* Top domains */}
                 <div style={S.card}>
                   <div style={S.cardTitle}>Top Domain</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -147,15 +176,16 @@ export default function Statistics({ onBack, onLogout }) {
                 </div>
               </div>
 
+              {/* Bar chart */}
               <div style={S.card}>
                 <div style={S.cardTitle}>Redirect 7 Hari Terakhir</div>
-                <ResponsiveContainer width="100%" height={230}>
+                <ResponsiveContainer width="100%" height={isMobile ? 200 : 230}>
                   {groups.length > 1 ? (
-                    <BarChart data={groupedBarData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+                    <BarChart data={groupedBarData} margin={{ top: 5, right: isMobile ? 8 : 20, bottom: 5, left: isMobile ? -16 : 0 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#e8e8e4" />
-                      <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#71717a' }} />
-                      <YAxis tick={{ fontSize: 10, fill: '#71717a' }} allowDecimals={false} />
-                      <Tooltip content={<DarkTooltip />} />
+                      <XAxis dataKey="date" tick={{ fontSize: isMobile ? 9 : 10, fill: '#71717a' }} />
+                      <YAxis tick={{ fontSize: isMobile ? 9 : 10, fill: '#71717a' }} allowDecimals={false} />
+                      <Tooltip content={<LightTooltip />} />
                       <Legend wrapperStyle={{ fontSize: 11, color: '#52525b' }} />
                       {groups.map((g, i) => (
                         <Bar key={g} dataKey={g} stackId="a" fill={COLORS[i % COLORS.length]}
@@ -163,11 +193,11 @@ export default function Statistics({ onBack, onLogout }) {
                       ))}
                     </BarChart>
                   ) : (
-                    <BarChart data={last7Days} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+                    <BarChart data={last7Days} margin={{ top: 5, right: isMobile ? 8 : 20, bottom: 5, left: isMobile ? -16 : 0 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#e8e8e4" />
-                      <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#71717a' }} />
-                      <YAxis tick={{ fontSize: 10, fill: '#71717a' }} allowDecimals={false} />
-                      <Tooltip content={<DarkTooltip />} />
+                      <XAxis dataKey="date" tick={{ fontSize: isMobile ? 9 : 10, fill: '#71717a' }} />
+                      <YAxis tick={{ fontSize: isMobile ? 9 : 10, fill: '#71717a' }} allowDecimals={false} />
+                      <Tooltip content={<LightTooltip />} />
                       <Bar dataKey="total" fill="#3b82f6" radius={[3, 3, 0, 0]} name="Redirect" />
                     </BarChart>
                   )}
@@ -182,18 +212,16 @@ export default function Statistics({ onBack, onLogout }) {
 }
 
 const S = {
-  pageHeader: {
-    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-    padding: '20px 24px', borderBottom: '1px solid var(--border)',
-    background: 'var(--bg2)', flexWrap: 'wrap', gap: 12,
-    position: 'sticky', top: 0, zIndex: 10,
-  },
   pageTitle: { fontWeight: 600, fontSize: 18, color: 'var(--text)', letterSpacing: '-0.3px' },
   pageSub:   { fontSize: 12, color: 'var(--text-dim)', marginTop: 3 },
-  badge:     { fontSize: 12, color: 'var(--text-dim)', background: 'var(--bg3)', border: '1px solid var(--border)', padding: '6px 14px', borderRadius: 'var(--radius)' },
-  content:   { padding: '20px 24px' },
-  row2:      { display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 12 },
-  card:      { background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '16px 18px', flex: 1, minWidth: 280, marginBottom: 12 },
+  hamburger: {
+    background: 'none', border: '1px solid var(--border2)',
+    borderRadius: 7, color: 'var(--text-dim)', cursor: 'pointer',
+    width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center',
+    flexShrink: 0,
+  },
+  badge:     { fontSize: 12, color: 'var(--text-dim)', background: 'var(--bg3)', border: '1px solid var(--border)', padding: '6px 14px', borderRadius: 'var(--radius)', whiteSpace: 'nowrap' },
+  card:      { background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '16px 18px', marginBottom: 0 },
   cardTitle: { fontWeight: 600, fontSize: 13, color: 'var(--text)', marginBottom: 14 },
   center:    { display: 'flex', alignItems: 'center', justifyContent: 'center', height: 200, color: 'var(--text-dim)', fontSize: 13 },
 };

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { domainAPI } from '../api';
+import { useIsMobile } from '../hooks/useIsMobile';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
 
@@ -25,20 +26,19 @@ function NavItem({ label, active, onClick, icon }) {
   );
 }
 
-function StatusDot({ color, glow }) {
+function StatusDot({ color }) {
   return (
     <span style={{
       width: 6, height: 6, borderRadius: '50%', flexShrink: 0,
-      background: color,
-      boxShadow: 'none',
-      display: 'inline-block',
+      background: color, display: 'inline-block',
     }} />
   );
 }
 
-export default function Sidebar({ activePage = 'dashboard', onDashboard, onStats, onLogout }) {
+export default function Sidebar({ activePage = 'dashboard', onDashboard, onStats, onLogout, isOpen = false, onClose }) {
   const [stats, setStats] = useState(null);
-  const [time, setTime] = useState(new Date());
+  const [time, setTime]   = useState(new Date());
+  const isMobile          = useIsMobile();
 
   useEffect(() => {
     const loadStats = () =>
@@ -49,76 +49,111 @@ export default function Sidebar({ activePage = 'dashboard', onDashboard, onStats
     return () => { clearInterval(si); clearInterval(ti); };
   }, []);
 
+  /* Close sidebar after nav on mobile */
+  const handleNav = (fn) => { fn?.(); if (isMobile) onClose?.(); };
+
+  const mobileSidebarStyle = {
+    ...S.sidebar,
+    position: 'fixed',
+    top: 0, left: 0,
+    zIndex: 1001,
+    height: '100dvh',
+    transform: isOpen ? 'translateX(0)' : 'translateX(-100%)',
+    transition: 'transform 0.25s ease',
+    boxShadow: isOpen ? '4px 0 24px rgba(0,0,0,0.16)' : 'none',
+  };
+
   return (
-    <aside style={S.sidebar}>
-      {/* Logo */}
-      <div style={S.logo}>
-        <div style={S.logoIcon}>⬡</div>
-        <div>
-          <div style={S.logoName}>NawalaRedirect</div>
-          <div style={S.logoSub}>Domain Gateway</div>
+    <>
+      {/* Mobile backdrop */}
+      {isMobile && (
+        <div
+          onClick={onClose}
+          style={{
+            position: 'fixed', inset: 0,
+            background: 'rgba(0,0,0,0.4)',
+            zIndex: 1000,
+            opacity: isOpen ? 1 : 0,
+            pointerEvents: isOpen ? 'auto' : 'none',
+            transition: 'opacity 0.25s ease',
+          }}
+        />
+      )}
+
+      <aside style={isMobile ? mobileSidebarStyle : S.sidebar}>
+        {/* Logo row */}
+        <div style={S.logo}>
+          <div style={S.logoIcon}>⬡</div>
+          <div style={{ flex: 1 }}>
+            <div style={S.logoName}>NawalaRedirect</div>
+            <div style={S.logoSub}>Domain Gateway</div>
+          </div>
+          {/* Close button inside sidebar (mobile only) */}
+          {isMobile && (
+            <button onClick={onClose} style={S.closeBtn}>✕</button>
+          )}
         </div>
-      </div>
 
-      {/* Nav */}
-      <nav style={S.nav}>
-        <NavItem icon="▤" label="Dashboard"  active={activePage === 'dashboard'}  onClick={onDashboard} />
-        <NavItem icon="▦" label="Statistik"  active={activePage === 'statistics'} onClick={onStats} />
-      </nav>
+        {/* Nav */}
+        <nav style={S.nav}>
+          <NavItem icon="▤" label="Dashboard"  active={activePage === 'dashboard'}  onClick={() => handleNav(onDashboard)} />
+          <NavItem icon="▦" label="Statistik"  active={activePage === 'statistics'} onClick={() => handleNav(onStats)} />
+        </nav>
 
-      <div style={S.sep} />
+        <div style={S.sep} />
 
-      {/* System status */}
-      <div style={S.section}>
-        <div style={S.sectionHead}>Status Sistem</div>
-        {stats ? (
-          <>
-            <div style={S.statusRow}>
-              <StatusDot color="var(--green)" glow={stats.active > 0} />
-              <span style={S.statusLabel}>{stats.active} aktif</span>
-            </div>
-            <div style={S.statusRow}>
-              <StatusDot color={stats.blocked > 0 ? 'var(--red)' : 'var(--text-muted)'} glow={stats.blocked > 0} />
-              <span style={{ ...S.statusLabel, color: stats.blocked > 0 ? 'var(--red)' : 'var(--text-muted)' }}>
-                {stats.blocked} nawala
-              </span>
-            </div>
-            <div style={S.statusRow}>
-              <StatusDot color="var(--text-muted)" />
-              <span style={{ ...S.statusLabel, color: 'var(--text-muted)' }}>{stats.inactive} nonaktif</span>
-            </div>
-            <div style={S.miniStat}>
-              <span style={S.miniLabel}>Redirect hari ini</span>
-              <span style={S.miniValue}>{stats.todayRedirects}</span>
-            </div>
-          </>
-        ) : (
-          <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Memuat...</div>
-        )}
-      </div>
-
-      <div style={S.sep} />
-
-      {/* Gateway */}
-      <div style={S.section}>
-        <div style={S.sectionHead}>Gateway</div>
-        <a href={API_URL} target="_blank" rel="noreferrer" style={S.gatewayUrl}>
-          {(API_URL || '—').replace('https://', '')} ↗
-        </a>
-      </div>
-
-      <div style={{ flex: 1 }} />
-      <div style={S.sep} />
-
-      {/* Bottom */}
-      <div style={S.bottom}>
-        <div style={S.clock}>{time.toLocaleTimeString('id-ID', { hour12: false })}</div>
-        <div style={S.clockDate}>
-          {time.toLocaleDateString('id-ID', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })}
+        {/* System status */}
+        <div style={S.section}>
+          <div style={S.sectionHead}>Status Sistem</div>
+          {stats ? (
+            <>
+              <div style={S.statusRow}>
+                <StatusDot color="var(--green)" />
+                <span style={S.statusLabel}>{stats.active} aktif</span>
+              </div>
+              <div style={S.statusRow}>
+                <StatusDot color={stats.blocked > 0 ? 'var(--red)' : 'var(--text-muted)'} />
+                <span style={{ ...S.statusLabel, color: stats.blocked > 0 ? 'var(--red)' : 'var(--text-muted)' }}>
+                  {stats.blocked} nawala
+                </span>
+              </div>
+              <div style={S.statusRow}>
+                <StatusDot color="var(--text-muted)" />
+                <span style={{ ...S.statusLabel, color: 'var(--text-muted)' }}>{stats.inactive} nonaktif</span>
+              </div>
+              <div style={S.miniStat}>
+                <span style={S.miniLabel}>Redirect hari ini</span>
+                <span style={S.miniValue}>{stats.todayRedirects}</span>
+              </div>
+            </>
+          ) : (
+            <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Memuat...</div>
+          )}
         </div>
-        <button onClick={onLogout} style={S.logoutBtn}>Keluar</button>
-      </div>
-    </aside>
+
+        <div style={S.sep} />
+
+        {/* Gateway */}
+        <div style={S.section}>
+          <div style={S.sectionHead}>Gateway</div>
+          <a href={API_URL} target="_blank" rel="noreferrer" style={S.gatewayUrl}>
+            {(API_URL || '—').replace('https://', '')} ↗
+          </a>
+        </div>
+
+        <div style={{ flex: 1 }} />
+        <div style={S.sep} />
+
+        {/* Bottom */}
+        <div style={S.bottom}>
+          <div style={S.clock}>{time.toLocaleTimeString('id-ID', { hour12: false })}</div>
+          <div style={S.clockDate}>
+            {time.toLocaleDateString('id-ID', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })}
+          </div>
+          <button onClick={onLogout} style={S.logoutBtn}>Keluar</button>
+        </div>
+      </aside>
+    </>
   );
 }
 
@@ -137,20 +172,21 @@ const S = {
     borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center',
     fontSize: 14, flexShrink: 0,
   },
-  logoName: { fontWeight: 600, fontSize: 13, color: 'var(--text)', letterSpacing: '-0.2px' },
-  logoSub:  { fontSize: 10, color: 'var(--text-muted)', marginTop: 1 },
-  nav:      { padding: '10px 8px 6px' },
-  sep:      { height: 1, background: 'var(--border)' },
-  section:  { padding: '12px 14px' },
+  logoName:  { fontWeight: 600, fontSize: 13, color: 'var(--text)', letterSpacing: '-0.2px' },
+  logoSub:   { fontSize: 10, color: 'var(--text-muted)', marginTop: 1 },
+  closeBtn:  { background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 16, padding: '4px 6px', borderRadius: 4, flexShrink: 0 },
+  nav:       { padding: '10px 8px 6px' },
+  sep:       { height: 1, background: 'var(--border)' },
+  section:   { padding: '12px 14px' },
   sectionHead: { fontSize: 10, fontWeight: 500, color: 'var(--text-muted)', marginBottom: 8, letterSpacing: '0.04em' },
-  statusRow: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 7 },
+  statusRow:   { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 7 },
   statusLabel: { fontSize: 12, color: 'var(--text-dim)' },
   miniStat: {
     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
     marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--border)',
   },
-  miniLabel: { fontSize: 11, color: 'var(--text-muted)' },
-  miniValue: { fontSize: 12, fontWeight: 600, color: 'var(--text)', fontFamily: 'var(--mono)' },
+  miniLabel:  { fontSize: 11, color: 'var(--text-muted)' },
+  miniValue:  { fontSize: 12, fontWeight: 600, color: 'var(--text)', fontFamily: 'var(--mono)' },
   gatewayUrl: {
     fontSize: 11, color: 'var(--accent)', fontFamily: 'var(--mono)',
     textDecoration: 'none', wordBreak: 'break-all', display: 'block',

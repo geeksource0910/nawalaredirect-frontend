@@ -4,16 +4,17 @@ import StatCard from '../components/StatCard';
 import DomainRow from '../components/DomainRow';
 import AddDomainForm from '../components/AddDomainForm';
 import Sidebar from '../components/Sidebar';
+import { useIsMobile } from '../hooks/useIsMobile';
 
 // ── Add Domain Modal ────────────────────────────────────────────────────────
-function AddModal({ show, onClose, groups, onAdded }) {
+function AddModal({ show, onClose, groups, onAdded, isMobile }) {
   if (!show) return null;
   return (
     <div
-      style={MS.overlay}
-      onClick={e => e.target === e.currentTarget && onClose()}
+      style={isMobile ? MS.overlayMobile : MS.overlay}
+      onClick={e => !isMobile && e.target === e.currentTarget && onClose()}
     >
-      <div style={MS.modal}>
+      <div style={isMobile ? MS.modalMobile : MS.modal}>
         <div style={MS.header}>
           <div>
             <div style={MS.title}>Tambah Domain</div>
@@ -36,12 +37,23 @@ const MS = {
     display: 'flex', alignItems: 'center', justifyContent: 'center',
     zIndex: 999, padding: 24, backdropFilter: 'blur(6px)',
   },
+  overlayMobile: {
+    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)',
+    display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+    zIndex: 999, backdropFilter: 'blur(4px)',
+  },
   modal: {
     background: 'var(--bg2)', border: '1px solid var(--border2)',
     borderRadius: 12, width: '100%', maxWidth: 580,
-    boxShadow: '0 32px 80px rgba(0,0,0,0.7)',
+    boxShadow: '0 32px 80px rgba(0,0,0,0.15)',
     animation: 'fadeUp 0.18s ease',
     overflow: 'hidden',
+  },
+  modalMobile: {
+    background: 'var(--bg2)', borderRadius: '16px 16px 0 0',
+    width: '100%', maxHeight: '92dvh', overflow: 'auto',
+    animation: 'fadeUp 0.22s ease',
+    boxShadow: '0 -8px 32px rgba(0,0,0,0.15)',
   },
   header: {
     display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
@@ -54,17 +66,19 @@ const MS = {
 
 // ── Dashboard ────────────────────────────────────────────────────────────────
 export default function Dashboard({ onLogout, onStats }) {
-  const [domains, setDomains]         = useState([]);
-  const [stats, setStats]             = useState(null);
-  const [groupStats, setGroupStats]   = useState([]);
-  const [groups, setGroups]           = useState([]);
-  const [loading, setLoading]         = useState(true);
-  const [checkingAll, setCheckingAll] = useState(false);
-  const [checkingISP, setCheckingISP] = useState(false);
-  const [filter, setFilter]           = useState('all');
-  const [search, setSearch]           = useState('');
-  const [showModal, setShowModal]     = useState(false);
-  const [lastUpdate, setLastUpdate]   = useState(null);
+  const [domains, setDomains]           = useState([]);
+  const [stats, setStats]               = useState(null);
+  const [groupStats, setGroupStats]     = useState([]);
+  const [groups, setGroups]             = useState([]);
+  const [loading, setLoading]           = useState(true);
+  const [checkingAll, setCheckingAll]   = useState(false);
+  const [checkingISP, setCheckingISP]   = useState(false);
+  const [filter, setFilter]             = useState('all');
+  const [search, setSearch]             = useState('');
+  const [showModal, setShowModal]       = useState(false);
+  const [lastUpdate, setLastUpdate]     = useState(null);
+  const [sidebarOpen, setSidebarOpen]   = useState(false);
+  const isMobile                        = useIsMobile();
 
   const fetchData = useCallback(async () => {
     try {
@@ -123,53 +137,93 @@ export default function Dashboard({ onLogout, onStats }) {
 
   const totalFiltered = groupEntries.reduce((a, e) => a + e.domains.length, 0);
 
+  /* ── Layout ── */
+  const px    = isMobile ? 14 : 24;
+  const padY  = isMobile ? 12 : 20;
+
   return (
-    <div style={{ display: 'flex', height: '100vh', background: 'var(--bg)' }}>
+    <div style={{ display: 'flex', height: '100vh', background: 'var(--bg)', overflow: 'hidden' }}>
       <Sidebar
         activePage="dashboard"
         onDashboard={() => {}}
         onStats={onStats}
         onLogout={onLogout}
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
       />
 
       {/* ── Main ── */}
-      <div style={{ flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column', minWidth: 0 }}>
 
         {/* Page header */}
-        <div style={S.pageHeader}>
-          <div>
-            <h1 style={S.pageTitle}>Domain Overview</h1>
-            <p style={S.pageSub}>
-              {lastUpdate
-                ? `${totalFiltered} domain · diperbarui ${lastUpdate.toLocaleTimeString('id-ID')}`
-                : 'Memuat...'}
-            </p>
+        <div style={{
+          display: 'flex',
+          flexDirection: isMobile ? 'column' : 'row',
+          alignItems: isMobile ? 'flex-start' : 'center',
+          justifyContent: 'space-between',
+          padding: `${padY}px ${px}px`,
+          borderBottom: '1px solid var(--border)',
+          background: 'var(--bg2)',
+          gap: isMobile ? 10 : 12,
+          position: 'sticky', top: 0, zIndex: 10,
+        }}>
+          {/* Title row (with hamburger on mobile) */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {isMobile && (
+              <button
+                onClick={() => setSidebarOpen(true)}
+                style={S.hamburger}
+                aria-label="Buka menu"
+              >
+                <span style={{ fontSize: 18, lineHeight: 1 }}>☰</span>
+              </button>
+            )}
+            <div>
+              <h1 style={S.pageTitle}>Domain Overview</h1>
+              <p style={S.pageSub}>
+                {lastUpdate
+                  ? `${totalFiltered} domain · diperbarui ${lastUpdate.toLocaleTimeString('id-ID')}`
+                  : 'Memuat...'}
+              </p>
+            </div>
           </div>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+
+          {/* Action buttons */}
+          <div style={{
+            display: 'flex', gap: 6, flexWrap: 'wrap',
+            width: isMobile ? '100%' : 'auto',
+          }}>
             <button
-              style={{ ...S.btn2, opacity: checkingISP ? 0.5 : 1 }}
+              style={{ ...S.btn2, opacity: checkingISP ? 0.5 : 1, flex: isMobile ? 1 : undefined }}
               onClick={handleCheckAllISP}
               disabled={checkingISP}
             >
-              {checkingISP ? 'Checking...' : '🇮🇩 Cek Semua ISP'}
+              {checkingISP ? 'Checking...' : '🇮🇩 ISP'}
             </button>
             <button
-              style={{ ...S.btn2, opacity: checkingAll ? 0.5 : 1 }}
+              style={{ ...S.btn2, opacity: checkingAll ? 0.5 : 1, flex: isMobile ? 1 : undefined }}
               onClick={handleCheckAll}
               disabled={checkingAll}
             >
-              {checkingAll ? 'Checking...' : '↻ Cek Semua'}
+              {checkingAll ? '...' : '↻ Cek'}
             </button>
-            <button style={S.btnPrimary} onClick={() => setShowModal(true)}>
-              + Tambah Domain
+            <button
+              style={{ ...S.btnPrimary, flex: isMobile ? 1 : undefined }}
+              onClick={() => setShowModal(true)}
+            >
+              + Tambah
             </button>
           </div>
         </div>
 
-        <div style={S.content}>
-          {/* Stat cards */}
+        <div style={{ padding: `${padY}px ${px}px`, flex: 1 }}>
+          {/* Stat cards — 2 col on mobile, auto-fill on desktop */}
           {stats && (
-            <div style={S.statsRow}>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(auto-fill, minmax(140px, 1fr))',
+              gap: 8, marginBottom: 16,
+            }}>
               <StatCard label="Total Domain"      value={stats.total}          icon="◈" color="var(--text)" />
               <StatCard label="Aktif"             value={stats.active}         icon="●" color="var(--green)" />
               <StatCard label="Nawala"            value={stats.blocked}        icon="✕" color="var(--red)" />
@@ -179,30 +233,45 @@ export default function Dashboard({ onLogout, onStats }) {
             </div>
           )}
 
-          {/* Filter + Search bar */}
-          <div style={S.filterBar}>
-            <div style={S.tabs}>
+          {/* Filter + Search — tabs scroll horizontally on mobile */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, flexWrap: isMobile ? 'nowrap' : 'wrap', overflowX: isMobile ? 'auto' : 'visible', paddingBottom: isMobile ? 4 : 0 }}>
+            <div style={{ display: 'flex', gap: 1, background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: 3, flexShrink: 0 }}>
               {[['all', 'Semua'], ['active', 'Aktif'], ['blocked', 'Nawala'], ['inactive', 'Nonaktif']].map(([v, l]) => (
                 <button
                   key={v}
-                  style={{ ...S.tab, ...(filter === v ? S.tabActive : {}) }}
+                  style={{
+                    background: filter === v ? 'var(--bg3)' : 'transparent',
+                    border: 'none',
+                    color: filter === v ? 'var(--text)' : 'var(--text-muted)',
+                    padding: '5px 10px', cursor: 'pointer', fontSize: 12, fontWeight: 500,
+                    borderRadius: 5, whiteSpace: 'nowrap',
+                    boxShadow: filter === v ? '0 0 0 1px var(--border2)' : 'none',
+                  }}
                   onClick={() => setFilter(v)}
                 >
                   {l}
                 </button>
               ))}
             </div>
-            <div style={{ flex: 1 }} />
-            <div style={S.searchWrap}>
-              <span style={S.searchIcon}>🔍</span>
+            {/* Search — always visible but takes remaining space */}
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+              <span style={{ position: 'absolute', left: 10, fontSize: 11, pointerEvents: 'none', opacity: 0.5 }}>🔍</span>
               <input
-                style={S.searchInput}
+                style={{
+                  border: '1px solid var(--border2)', borderRadius: 'var(--radius)',
+                  padding: '6px 30px 6px 28px', fontSize: 12, outline: 'none',
+                  color: 'var(--text)', background: 'var(--bg2)',
+                  width: isMobile ? 160 : 220,
+                }}
                 placeholder="Cari URL atau label..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
               />
               {search && (
-                <button style={S.clearBtn} onClick={() => setSearch('')}>✕</button>
+                <button
+                  style={{ position: 'absolute', right: 8, background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 11 }}
+                  onClick={() => setSearch('')}
+                >✕</button>
               )}
             </div>
           </div>
@@ -217,18 +286,22 @@ export default function Dashboard({ onLogout, onStats }) {
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {groupEntries.map(entry => {
-                const gStats       = groupStats.find(g => g.group === entry.name);
-                const priorityDom  = entry.domains.find(d => d.is_priority === 1);
-                const API_URL      = import.meta.env.VITE_API_URL || '';
+                const gStats      = groupStats.find(g => g.group === entry.name);
+                const priorityDom = entry.domains.find(d => d.is_priority === 1);
+                const API_URL_VAL = import.meta.env.VITE_API_URL || '';
                 return (
                   <div key={entry.name || '__nogroup__'} style={S.groupCard}>
                     {/* Group header */}
-                    <div style={S.groupHead}>
+                    <div style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      padding: '10px 14px', borderBottom: '1px solid var(--border)',
+                      background: 'var(--bg)', flexWrap: 'wrap', gap: 6,
+                    }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                         <span style={S.groupName}>{entry.name || 'Tanpa Group'}</span>
                         {entry.name && (
                           <a
-                            href={`${API_URL}/${entry.name}`}
+                            href={`${API_URL_VAL}/${entry.name}`}
                             target="_blank"
                             rel="noreferrer"
                             style={S.groupLink}
@@ -237,9 +310,9 @@ export default function Dashboard({ onLogout, onStats }) {
                           </a>
                         )}
                       </div>
-                      <div style={{ display: 'flex', gap: 12 }}>
-                        <span style={{ fontSize: 11, color: 'var(--green)' }}>✓ {gStats?.active ?? '—'} aktif</span>
-                        <span style={{ fontSize: 11, color: 'var(--red)' }}>✕ {gStats?.blocked ?? '—'} nawala</span>
+                      <div style={{ display: 'flex', gap: 10 }}>
+                        <span style={{ fontSize: 11, color: 'var(--green)' }}>✓ {gStats?.active ?? '—'}</span>
+                        <span style={{ fontSize: 11, color: 'var(--red)' }}>✕ {gStats?.blocked ?? '—'}</span>
                         <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>∑ {gStats?.total ?? entry.domains.length}</span>
                       </div>
                     </div>
@@ -248,30 +321,32 @@ export default function Dashboard({ onLogout, onStats }) {
                     {priorityDom && (
                       <div style={S.priorityBar}>
                         <span style={{ fontSize: 11, color: 'var(--yellow)', fontWeight: 600 }}>★ Aktif sekarang</span>
-                        <span style={{ fontSize: 11, color: 'var(--text-dim)', fontFamily: 'var(--mono)', marginLeft: 8 }}>
+                        <span style={{ fontSize: 11, color: 'var(--text-dim)', fontFamily: 'var(--mono)', marginLeft: 8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {priorityDom.url.replace('https://', '')}
                         </span>
                       </div>
                     )}
 
-                    {/* Table */}
-                    <table style={S.table}>
-                      <thead>
-                        <tr style={{ background: 'var(--bg)' }}>
-                          <th style={S.th} width={28}></th>
-                          <th style={S.th} width={24}></th>
-                          <th style={S.th}>URL</th>
-                          <th style={S.th} width={80}>Status</th>
-                          <th style={S.th} width={50}>Cek</th>
-                          <th style={S.th} width={180}></th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {entry.domains.map(d => (
-                          <DomainRow key={d.id} domain={d} onRefresh={fetchData} groups={groups} />
-                        ))}
-                      </tbody>
-                    </table>
+                    {/* Table — horizontal scroll on mobile */}
+                    <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+                      <table style={{ ...S.table, minWidth: 480 }}>
+                        <thead>
+                          <tr style={{ background: 'var(--bg)' }}>
+                            <th style={S.th} width={28}></th>
+                            <th style={S.th} width={24}></th>
+                            <th style={S.th}>URL</th>
+                            <th style={S.th} width={80}>Status</th>
+                            <th style={S.th} width={50}>Cek</th>
+                            <th style={S.th} width={160}></th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {entry.domains.map(d => (
+                            <DomainRow key={d.id} domain={d} onRefresh={fetchData} groups={groups} />
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 );
               })}
@@ -279,7 +354,7 @@ export default function Dashboard({ onLogout, onStats }) {
           )}
 
           <div style={S.footer}>
-            Auto-refresh setiap 60 detik · Health check setiap 10 menit · Laporan Telegram setiap 4 jam
+            Auto-refresh 60 detik · Health check 10 menit · Laporan Telegram 4 jam
           </div>
         </div>
       </div>
@@ -290,53 +365,38 @@ export default function Dashboard({ onLogout, onStats }) {
         onClose={() => setShowModal(false)}
         groups={groups}
         onAdded={fetchData}
+        isMobile={isMobile}
       />
     </div>
   );
 }
 
 const S = {
-  pageHeader: {
-    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-    padding: '20px 24px', borderBottom: '1px solid var(--border)',
-    background: 'var(--bg2)', flexWrap: 'wrap', gap: 12,
-    position: 'sticky', top: 0, zIndex: 10,
-  },
   pageTitle: { fontWeight: 600, fontSize: 18, color: 'var(--text)', letterSpacing: '-0.3px' },
   pageSub:   { fontSize: 12, color: 'var(--text-dim)', marginTop: 3 },
+  hamburger: {
+    background: 'none', border: '1px solid var(--border2)',
+    borderRadius: 7, color: 'var(--text-dim)', cursor: 'pointer',
+    width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center',
+    flexShrink: 0,
+  },
   btnPrimary: {
     background: 'var(--accent)', color: '#fff', border: 'none',
-    borderRadius: 'var(--radius)', padding: '8px 16px',
-    fontSize: 13, fontWeight: 500, cursor: 'pointer',
+    borderRadius: 'var(--radius)', padding: '8px 14px',
+    fontSize: 13, fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap',
   },
   btn2: {
     background: 'var(--bg3)', border: '1px solid var(--border2)',
     color: 'var(--text-dim)', borderRadius: 'var(--radius)',
-    padding: '7px 14px', fontSize: 12, fontWeight: 500, cursor: 'pointer',
+    padding: '7px 12px', fontSize: 12, fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap',
   },
-  content:  { padding: '20px 24px', flex: 1 },
-  statsRow: { display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 },
-
-  filterBar:   { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, flexWrap: 'wrap' },
-  tabs:        { display: 'flex', gap: 1, background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: 3 },
-  tab:         { background: 'transparent', border: 'none', color: 'var(--text-muted)', padding: '5px 12px', cursor: 'pointer', fontSize: 12, fontWeight: 500, borderRadius: 5 },
-  tabActive:   { background: 'var(--bg3)', color: 'var(--text)', boxShadow: '0 0 0 1px var(--border2)' },
-  searchWrap:  { position: 'relative', display: 'flex', alignItems: 'center' },
-  searchIcon:  { position: 'absolute', left: 10, fontSize: 11, pointerEvents: 'none', opacity: 0.5 },
-  searchInput: {
-    border: '1px solid var(--border2)', borderRadius: 'var(--radius)',
-    padding: '6px 30px 6px 28px', fontSize: 12, outline: 'none',
-    color: 'var(--text)', background: 'var(--bg2)', width: 220,
-  },
-  clearBtn: { position: 'absolute', right: 8, background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 11 },
 
   groupCard:   { background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', overflow: 'hidden', boxShadow: 'var(--shadow)' },
-  groupHead:   { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderBottom: '1px solid var(--border)', background: 'var(--bg)' },
   groupName:   { fontWeight: 600, fontSize: 12, color: 'var(--text)', textTransform: 'capitalize' },
   groupLink:   { fontSize: 10, color: 'var(--accent)', textDecoration: 'none', fontFamily: 'var(--mono)' },
-  priorityBar: { display: 'flex', alignItems: 'center', padding: '5px 14px', background: 'var(--yellow-dim)', borderBottom: '1px solid rgba(245,158,11,0.1)' },
+  priorityBar: { display: 'flex', alignItems: 'center', padding: '5px 14px', background: 'var(--yellow-dim)', borderBottom: '1px solid rgba(245,158,11,0.1)', overflow: 'hidden' },
   table:       { width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' },
-  th:          { fontSize: 10, fontWeight: 500, color: 'var(--text-muted)', textAlign: 'left', padding: '6px 10px', borderBottom: '1px solid var(--border)', userSelect: 'none' },
+  th:          { fontSize: 10, fontWeight: 500, color: 'var(--text-muted)', textAlign: 'left', padding: '6px 10px', borderBottom: '1px solid var(--border)', userSelect: 'none', whiteSpace: 'nowrap' },
   empty:       { background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '48px 24px', color: 'var(--text-muted)', fontSize: 13, textAlign: 'center' },
   footer:      { marginTop: 20, fontSize: 10, color: 'var(--text-muted)', textAlign: 'center', padding: '12px 0', borderTop: '1px solid var(--border)' },
 };
